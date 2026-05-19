@@ -1,65 +1,95 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BIT DK Playground</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>BIT DK Playground</title>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #264653;
-      color: white;
-      margin: 0;
-      padding: 40px;
-    }
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #264653;
+            color: white;
+            margin: 0;
+            padding: 40px;
+        }
 
-    h1 {
-      font-size: 48px;
-      margin-bottom: 10px;
-    }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
 
-    p {
-      font-size: 20px;
-      color: #dcdcdc;
-    }
+        p {
+            font-size: 20px;
+            color: #dcdcdc;
+        }
 
-    .apps {
-      margin-top: 40px;
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
+        .apps {
+            margin-top: 40px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
 
-    .card {
-      background: white;
-      color: #264653;
-      padding: 20px;
-      border-radius: 12px;
-      width: 250px;
-      text-decoration: none;
-      transition: 0.2s;
-    }
+        .card {
+            background: white;
+            color: #264653;
+            padding: 25px;
+            border-radius: 14px;
+            width: 260px;
+            text-decoration: none;
+            transition: 0.2s;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
 
-    .card:hover {
-      transform: scale(1.03);
-    }
-  </style>
+        .card:hover {
+            transform: scale(1.03);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 32px;
+        }
+
+        .card p {
+            color: #666;
+            font-size: 18px;
+        }
+
+        .status {
+            margin-top: 20px;
+            display: inline-block;
+            background: #2ecc71;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 
 <body>
 
-  <h1>BIT DK Playground</h1>
-  <p>Samling af interne HTML apps og eksperimenter.</p>
+    <h1>BIT DK Playground</h1>
 
-  <div class="apps">
+    <p>Samling af interne HTML apps og eksperimenter.</p>
 
-    <a class="card" href="#">
-      <h2>Finance til SharePoint</h2>
-      <p>Migrationsprojekt</p>
-    </a>
+    <div class="apps">
 
-  </div>
+        <a class="card" href="/apps/finance-sharepoint/">
+            <h2>Finance til SharePoint</h2>
+            <p>Migrationsprojekt</p>
+            <span class="status">Online</span>
+        </a>
+
+        <a class="card" href="/apps/vagtsystem/">
+            <h2>Vagtsystem</h2>
+            <p>Test- og udviklingsmiljø</p>
+            <span class="status">Online</span>
+        </a>
+
+    </div>
 
 </body>
 </html>
