@@ -521,6 +521,20 @@ html, body {
   margin-right: 0.4rem;
 }
 
+
+/* ============ EXCEL DATA BUTTONS ============ */
+.excel-file-input {
+  display: none;
+}
+.nav-btn.excel {
+  background: var(--sage-lt);
+  border-color: var(--sage);
+  color: var(--sage-dk);
+}
+.nav-btn.excel:hover {
+  background: #CDD8C7;
+}
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 1000px) {
   .slide { padding: 2rem 1.5rem 5rem; }
@@ -812,10 +826,14 @@ html, body {
     <button class="nav-btn q-quickbtn" id="goto-q" title="Spørgsmål (Q)">
       ? <span class="q-count-badge" id="q-count">0</span>
     </button>
+    <input class="excel-file-input" type="file" id="excel-file" accept=".xlsx,.xls">
+    <button class="nav-btn excel" id="excel-load" title="Indlæs data fra Excel">Indlæs Excel</button>
+    <button class="nav-btn excel" id="excel-save" title="Gem data til Excel">Gem Excel</button>
     <button class="nav-btn warn" id="reset" title="Nulstil alle flueben">↻</button>
   </div>
 </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (function() {
   const STORAGE_KEY = 'finance-sp-state-v1';
@@ -1037,6 +1055,166 @@ html, body {
       input.value = '';
     }
   });
+
+
+  // ----- Excel data source -----
+  const ID_ALIASES = {
+    'powershell': 'ps-scripts',
+    'connections': 'system-connections',
+    'restore': 'versioning',
+    'rights': 'tek-rights',
+    'folders': 'tek-folders',
+    'history': 'tek-history',
+    'pst': 'tek-pst',
+    'onedrive': 'tek-onedrive',
+    'archive': 'tek-cutoff'
+  };
+
+  function normalizeStatus(value) {
+    const s = String(value || '').trim().toLowerCase();
+    if (s === 'resolved' || s === 'styr på' || s === 'styr paa' || s === 'styrpaa' || s === 'done' || s === 'ok' || s === 'true') return 'resolved';
+    if (s === 'investigate' || s === 'skal undersøges' || s === 'undersøg' || s === 'undersog' || s === 'open' || s === '?') return 'investigate';
+    return '';
+  }
+
+  function normalizeBool(value) {
+    const s = String(value || '').trim().toLowerCase();
+    return s === 'true' || s === 'ja' || s === 'yes' || s === '1' || s === 'besvaret' || s === 'resolved';
+  }
+
+  function mapItemId(id) {
+    const key = String(id || '').trim();
+    return ID_ALIASES[key] || key;
+  }
+
+  function persistAll() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+    saveQuestions();
+  }
+
+  function sheetToRows(workbook, sheetName) {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) return [];
+    return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  }
+
+  function importExcelWorkbook(workbook) {
+    if (!window.XLSX) {
+      alert('Excel-biblioteket kunne ikke indlæses. Tjek internetforbindelse eller CDN-adgang.');
+      return;
+    }
+
+    const itemRows = sheetToRows(workbook, 'Items');
+    itemRows.forEach(row => {
+      const id = mapItemId(row.id || row.ID || row.Id);
+      if (!id) return;
+      const status = normalizeStatus(row.status || row.Status);
+      if (status) state[id] = status;
+      else delete state[id];
+    });
+
+    const questionRows = sheetToRows(workbook, 'Questions');
+    if (questionRows.length) {
+      questions = questionRows
+        .map((row, index) => {
+          const text = String(row.question || row.Question || row.text || row.Text || '').trim();
+          if (!text) return null;
+
+          let addedAt = row.addedAt || row.AddedAt || '';
+          const time = String(row.time || row.Time || '').trim();
+          if (!addedAt && time) {
+            const today = new Date();
+            const parts = time.split(':');
+            if (parts.length >= 2) {
+              today.setHours(parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, 0, 0);
+              addedAt = today.toISOString();
+            }
+          }
+          if (!addedAt) addedAt = new Date().toISOString();
+
+          return {
+            id: 'q' + index + '-' + Date.now().toString(36),
+            text: text,
+            addedAt: addedAt,
+            answered: normalizeBool(row.answered || row.Answered || row.status || row.Status)
+          };
+        })
+        .filter(Boolean);
+    }
+
+    persistAll();
+    renderItems();
+    renderQuestions();
+    alert('Excel-data er indlæst.');
+  }
+
+  function getCategoryForItem(el) {
+    const category = el.closest('.category');
+    if (!category) return '';
+    const header = category.querySelector('.category-header');
+    return header ? header.textContent.trim() : '';
+  }
+
+  function exportExcelWorkbook() {
+    if (!window.XLSX) {
+      alert('Excel-biblioteket kunne ikke indlæses. Tjek internetforbindelse eller CDN-adgang.');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const itemRows = Array.from(document.querySelectorAll('.item')).map(el => ({
+      id: el.dataset.id,
+      category: getCategoryForItem(el),
+      text: el.querySelector('.item-text') ? el.querySelector('.item-text').textContent.trim() : '',
+      status: state[el.dataset.id] || '',
+      note: '',
+      updated: now
+    }));
+
+    const questionRows = questions.map(q => ({
+      question: q.text,
+      answered: !!q.answered,
+      time: formatTime(q.addedAt),
+      addedAt: q.addedAt || ''
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(itemRows), 'Items');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(questionRows), 'Questions');
+    XLSX.writeFile(workbook, 'FinanceMigrationData_UPDATED.xlsx');
+  }
+
+  const excelLoadBtn = document.getElementById('excel-load');
+  const excelSaveBtn = document.getElementById('excel-save');
+  const excelFile = document.getElementById('excel-file');
+
+  if (excelLoadBtn && excelFile) {
+    excelLoadBtn.addEventListener('click', () => excelFile.click());
+    excelFile.addEventListener('change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = evt => {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          importExcelWorkbook(workbook);
+        } catch (err) {
+          console.error(err);
+          alert('Kunne ikke læse Excel-filen.');
+        } finally {
+          excelFile.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  if (excelSaveBtn) {
+    excelSaveBtn.addEventListener('click', exportExcelWorkbook);
+  }
+
 
   // ----- Reset -----
   document.getElementById('reset').addEventListener('click', () => {
