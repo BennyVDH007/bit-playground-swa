@@ -827,8 +827,8 @@ html, body {
       ? <span class="q-count-badge" id="q-count">0</span>
     </button>
     <input class="excel-file-input" type="file" id="excel-file" accept=".xlsx,.xls">
-    <button class="nav-btn excel" id="excel-load" title="Indlæs data fra Excel">Indlæs Excel</button>
-    <button class="nav-btn excel" id="excel-save" title="Gem data til Excel">Gem Excel</button>
+    <button class="nav-btn excel" id="excel-load" title="Indlæs data fra lokal Excel-fil">Indlæs lokal Excel</button>
+    <button class="nav-btn excel" id="excel-save" title="Gem data direkte til SharePoint Excel">Gem til SharePoint</button>
     <button class="nav-btn warn" id="reset" title="Nulstil alle flueben">↻</button>
   </div>
 </nav>
@@ -1155,34 +1155,36 @@ html, body {
     return header ? header.textContent.trim() : '';
   }
 
-  function exportExcelWorkbook() {
-    if (!window.XLSX) {
-      alert('Excel-biblioteket kunne ikke indlæses. Tjek internetforbindelse eller CDN-adgang.');
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const itemRows = Array.from(document.querySelectorAll('.item')).map(el => ({
+  async function exportExcelWorkbook() {
+    const updates = Array.from(document.querySelectorAll('.item')).map(el => ({
       id: el.dataset.id,
-      category: getCategoryForItem(el),
-      text: el.querySelector('.item-text') ? el.querySelector('.item-text').textContent.trim() : '',
       status: state[el.dataset.id] || '',
-      note: '',
-      updated: now
+      note: ''
     }));
 
-    const questionRows = questions.map(q => ({
-      question: q.text,
-      answered: !!q.answered,
-      time: formatTime(q.addedAt),
-      addedAt: q.addedAt || ''
-    }));
+    try {
+      for (const row of updates) {
+        const response = await fetch(POWER_AUTOMATE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(row)
+        });
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(itemRows), 'Items');
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(questionRows), 'Questions');
-    XLSX.writeFile(workbook, 'FinanceMigrationData_UPDATED.xlsx');
+        if (!response.ok) {
+          throw new Error('Power Automate fejl: ' + response.status + ' ' + response.statusText);
+        }
+      }
+
+      alert('Data gemt til SharePoint Excel');
+    } catch (err) {
+      console.error(err);
+      alert('Fejl ved gemning til SharePoint Excel. Se Console for detaljer.');
+    }
   }
+
+  const POWER_AUTOMATE_URL = "https://default98f2d82cc0374c5fa381074c142838.1c.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/4d7df5d9049541ec964b4533b62b3299/triggers/manual/paths/invoke?api-version=1";
 
   const excelLoadBtn = document.getElementById('excel-load');
   const excelSaveBtn = document.getElementById('excel-save');
